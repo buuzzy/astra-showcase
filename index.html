@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#050510">
+<meta name="description" content="Astra：由 4500 个粒子构成的交互式霓虹旋臂星系。移动指针改变引力，点击释放冲击波，滚动深入星系中心。">
+<title>ASTRA — 引力之外</title>
+<style>
+:root { color-scheme: dark; --ink:#eeefff; --muted:#aaaac6; --cyan:#8cf5ff; --line:rgba(194,197,255,.2); }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; background:#050510; }
+body { margin:0; color:var(--ink); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; overflow-x:hidden; }
+button,a { -webkit-tap-highlight-color:transparent; }
+a { color:inherit; text-decoration:none; }
+a:focus-visible,button:focus-visible { outline:2px solid var(--cyan); outline-offset:7px; }
+#universe { position:fixed; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; }
+.vignette { position:fixed; inset:0; z-index:1; pointer-events:none; background:radial-gradient(ellipse at 50% 54%,transparent 25%,rgba(5,5,16,.5) 100%); }
+header { position:absolute; top:0; left:0; right:0; z-index:5; display:flex; align-items:center; justify-content:space-between; padding:30px 5vw; }
+.brand { display:flex; align-items:center; gap:12px; letter-spacing:.28em; font-size:13px; font-weight:700; }
+.brand-mark { width:23px; height:23px; border:1px solid var(--cyan); border-radius:50%; transform:rotate(-30deg); position:relative; box-shadow:0 0 20px #70e8ff33; }
+.brand-mark::after { content:""; position:absolute; inset:7px -6px; border:1px solid #c1a4ff; border-radius:50%; }
+.header-note { color:var(--muted); font:10px ui-monospace,monospace; letter-spacing:.15em; }
+main { position:relative; z-index:2; pointer-events:none; }
+main a,main button { pointer-events:auto; }
+.hero { min-height:100svh; padding:21svh 6vw 14svh; display:flex; flex-direction:column; align-items:center; text-align:center; position:relative; }
+.eyebrow { font:10px ui-monospace,monospace; letter-spacing:.3em; color:var(--cyan); text-transform:uppercase; }
+.eyebrow::before { content:""; display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--cyan); box-shadow:0 0 12px var(--cyan); margin:0 12px 2px 0; }
+h1 { font-size:clamp(64px,15vw,190px); line-height:1; letter-spacing:.17em; padding-left:.17em; margin:22px 0 16px; font-weight:250; }
+.reveal .letter { display:inline-block; opacity:0; transform:translateY(32px) rotateX(35deg); filter:blur(10px); transition:opacity 1s ease,transform 1.2s cubic-bezier(.2,.8,.2,1),filter 1.2s ease; transition-delay:calc(var(--i) * 95ms); }
+.reveal.visible .letter { opacity:1; transform:none; filter:blur(0); text-shadow:0 0 18px #c6c0ff70,0 0 65px #7277fa65; }
+.subtitle { font-size:clamp(12px,1.5vw,16px); letter-spacing:.4em; color:#c7c4df; margin:0; }
+.hero-bottom { margin-top:auto; padding-top:32svh; }
+.explore { display:inline-flex; align-items:center; gap:20px; font:10px ui-monospace,monospace; letter-spacing:.18em; padding:15px 20px; border:1px solid var(--line); border-radius:40px; background:#08081875; backdrop-filter:blur(12px); transition:border-color .3s,background .3s; }
+.explore:hover { border-color:var(--cyan); background:#15344380; }
+.explore span { font-size:18px; color:var(--cyan); }
+.chapter { min-height:105svh; padding:28svh 10vw 22svh; display:flex; flex-direction:column; justify-content:center; align-items:flex-start; }
+.chapter h2 { font-size:clamp(34px,6vw,78px); font-weight:300; letter-spacing:.08em; margin:28px 0; }
+.chapter p:not(.eyebrow) { max-width:360px; font-size:14px; line-height:2.1; color:#c8c6dd; text-shadow:0 2px 16px #000; }
+.rule { width:64px; height:1px; background:linear-gradient(90deg,var(--cyan),transparent); margin:8px 0; }
+footer { min-height:35svh; padding:8svh 10vw 15svh; display:flex; gap:25px; justify-content:space-between; align-items:flex-end; color:var(--muted); font:10px ui-monospace,monospace; letter-spacing:.1em; }
+footer a { border-bottom:1px solid var(--line); padding-bottom:8px; }
+.hud { position:fixed; z-index:6; bottom:25px; left:5vw; right:5vw; display:flex; justify-content:space-between; align-items:flex-end; gap:20px; pointer-events:none; }
+.stats { font:10px/1.8 ui-monospace,monospace; color:#bbbcd5; letter-spacing:.06em; }
+.stats strong { color:var(--cyan); font-weight:400; }
+.controls { display:flex; align-items:center; gap:20px; }
+.hint { font:10px/1.8 ui-monospace,monospace; color:#bbbcd5; text-align:right; }
+#pause { pointer-events:auto; color:var(--ink); background:#0a0b1acc; border:1px solid var(--line); border-radius:50px; min-width:76px; min-height:42px; padding:10px 16px; cursor:pointer; font-size:11px; }
+#pause:hover { border-color:var(--cyan); }
+.progress { position:fixed; z-index:8; left:0; bottom:0; width:100%; height:2px; background:linear-gradient(90deg,#8366ff,#8cf5ff); transform:scaleX(0); transform-origin:left; pointer-events:none; box-shadow:0 0 12px #8cf5ff; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+#fallback { position:fixed; z-index:10; top:90px; left:10%; right:10%; text-align:center; color:#fff; }
+noscript p { position:relative; z-index:10; text-align:center; padding:20px; }
+@media(max-width:600px) { header { padding:24px 6vw; } .header-note { font-size:8px; letter-spacing:.05em; } .hero { padding-top:25svh; } .chapter { padding-left:8vw; padding-right:8vw; } .hint { display:none; } .hud { bottom:18px; } .stats { font-size:9px; } .controls { gap:8px; } footer { flex-direction:column; align-items:flex-start; } }
+@media(prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } .reveal .letter { transition:none; transform:none; filter:none; } }
+</style>
+</head>
+<body>
+<canvas id="universe" aria-hidden="true"></canvas>
+<div class="vignette" aria-hidden="true"></div>
+<header><a class="brand" href="#top" aria-label="Astra 首页"><span class="brand-mark" aria-hidden="true"></span>ASTRA</a><span class="header-note">AN EXPERIMENT IN GRAVITY / 001</span></header>
+<main id="top">
+<section class="hero" aria-labelledby="title">
+<p class="eyebrow">Somewhere beyond the ordinary</p>
+<h1 id="title" class="reveal" data-reveal>ASTRA</h1>
+<p class="subtitle">引 力 之 外 · 万 物 共 振</p>
+<div class="hero-bottom"><a class="explore" href="#core">SCROLL INTO THE UNKNOWN <span aria-hidden="true">↓</span></a></div>
+</section>
+<section class="chapter" id="core" aria-labelledby="chapter-title">
+<p class="eyebrow">01 / Into the core</p>
+<h2 id="chapter-title" class="reveal" data-reveal>触碰宇宙的回响</h2>
+<div class="rule" aria-hidden="true"></div>
+<p>每一束光，都有自己的轨道。<br>移动指针，让星尘回应你的引力；<br>轻点虚空，释放一次温柔的星际爆发。</p>
+<p>然后，静候万物回归。<br>在混沌与秩序之间，看见宇宙的呼吸。</p>
+</section>
+<footer><span>4,500 PARTICLES · FOUR SPIRAL ARMS · ONE UNIVERSE</span><a href="#top">BACK TO ORBIT ↑</a></footer>
+</main>
+<div class="hud"><div class="stats">SYSTEM <strong id="state">LIVE</strong><br>PARTICLES <strong>4,500</strong> / DEPTH <strong id="depth">1.00×</strong></div><div class="controls"><div class="hint">MOVE TO ATTRACT<br>CLICK / TAP TO DISPERSE</div><button id="pause" type="button" aria-pressed="false" aria-label="暂停星系动画">暂停</button></div></div>
+<div class="progress" id="progress" aria-hidden="true"></div>
+<p id="fallback" hidden>当前浏览器无法启用 Canvas 2D，请使用支持 Canvas 的浏览器欣赏星系。</p>
+<p class="sr-only">背景包含缓慢运动的交互式星系。点击暂停按钮可停止动画；系统的减少动态效果偏好也会自动暂停初始动画。</p>
+<noscript><p>开启 JavaScript 即可体验交互式星系。</p></noscript>
+<script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('universe');
+  const ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) { document.getElementById('fallback').hidden = false; return; }
+  const COUNT = 4500;
+  const TAU = Math.PI * 2;
+  const TILT = 0.58;
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  const pauseButton = document.getElementById('pause');
+  const stateLabel = document.getElementById('state');
+  const depthLabel = document.getElementById('depth');
+  const progressBar = document.getElementById('progress');
+  let width = 1, height = 1, dpr = 1, baseScale = 1;
+  let scrollProgress = 0, camera = 1, centerX = 0, centerY = 0;
+  let clock = 0, lastTime = 0, raf = 0, clearNext = true;
+  let paused = reduceMotion.matches;
+  let lastDepth = '';
+  const pointer = { x: 0, y: 0, active: false };
+  const waves = [];
+  // A seeded generator keeps the composition stable across reloads.
+  let seed = 73419;
+  function random() { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; }
+  function gaussian() { return Math.sqrt(-2 * Math.log(Math.max(random(), 1e-8))) * Math.cos(TAU * random()); }
+  const palette = ['#99f6ff', '#a599ff', '#f4b0ee', '#fff4de'];
+  // Cache soft emissive sprites: no per-particle gradients or shadowBlur in the frame loop.
+  const sprites = palette.map(color => {
+    const tile = document.createElement('canvas'); tile.width = tile.height = 64;
+    const g = tile.getContext('2d');
+    const gradient = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gradient.addColorStop(0, '#ffffff');
+    gradient.addColorStop(0.12, color);
+    gradient.addColorStop(0.35, color + '80');
+    gradient.addColorStop(1, color + '00');
+    g.fillStyle = gradient; g.fillRect(0, 0, 64, 64);
+    return tile;
+  });
+  const particles = Array.from({ length: COUNT }, (_, i) => {
+    const radius = 0.028 + Math.pow(random(), 1.45) * 0.97;
+    const arm = i % 4;
+    const phase = arm * TAU / 4 + radius * 5.1 + gaussian() * (0.12 + radius * 0.13);
+    return {
+      radius, phase, speed: 0.022 + 0.054 / (0.22 + radius),
+      stretch: 1 + gaussian() * 0.035,
+      ox: 0, oy: 0, vx: 0, vy: 0,
+      size: 1.5 + random() * 3.1,
+      brightness: 0.35 + random() * 0.6,
+      shimmer: random() * TAU,
+      color: radius < 0.18 ? 3 : (random() < 0.52 ? 0 : (random() < 0.7 ? 1 : 2))
+    };
+  });
+  const stars = Array.from({ length: 160 }, () => ({ x: random(), y: random(), size: 0.35 + random() * 0.85, alpha: 0.12 + random() * 0.38 }));
+  function target(p) {
+    const angle = p.phase + clock * p.speed;
+    return [Math.cos(angle) * p.radius, Math.sin(angle) * p.radius * p.stretch];
+  }
+  function updateScroll() {
+    const range = document.documentElement.scrollHeight - height;
+    scrollProgress = range > 0 ? Math.min(1, Math.max(0, window.scrollY / range)) : 0;
+    progressBar.style.transform = 'scaleX(' + scrollProgress + ')';
+  }
+  function resize() {
+    width = window.innerWidth; height = window.innerHeight;
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.round(width * dpr); canvas.height = Math.round(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    baseScale = Math.min(width * 0.55, height * 0.65);
+    clearNext = true; updateScroll(); requestFrame();
+  }
+  function updateCamera(dt, instant) {
+    const desired = 1 + scrollProgress * scrollProgress * 2.6;
+    camera += (desired - camera) * (instant ? 1 : 1 - Math.exp(-dt * 5));
+    centerX = width * 0.5 + width * scrollProgress * 0.12;
+    centerY = height * (0.59 - scrollProgress * 0.08);
+    const label = camera.toFixed(2) + '×';
+    if (label !== lastDepth) { depthLabel.textContent = label; lastDepth = label; }
+  }
+  function requestFrame() { if (!raf && !document.hidden) raf = requestAnimationFrame(frame); }
+  function frame(now) {
+    raf = 0;
+    if (document.hidden) { lastTime = 0; return; }
+    if (dpr !== Math.max(1, window.devicePixelRatio || 1)) resize();
+    const dt = lastTime ? Math.min(0.05, Math.max(0.001, (now - lastTime) / 1000)) : 1 / 60;
+    lastTime = now;
+    updateCamera(dt, paused);
+    const scale = baseScale * camera;
+    if (!paused) clock += dt;
+    // Exponential alpha makes the motion trails consistent at different refresh rates.
+    ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1;
+    ctx.fillStyle = clearNext || paused ? '#050510' : 'rgba(5,5,16,' + (1 - Math.exp(-dt * 8.5)) + ')';
+    ctx.fillRect(0, 0, width, height); clearNext = false;
+    ctx.fillStyle = '#d7dcff';
+    for (const star of stars) {
+      ctx.globalAlpha = star.alpha;
+      ctx.fillRect(star.x * width, star.y * height, star.size, star.size);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'lighter';
+    // Low-opacity, wide halos accumulate with the trails into a luminous galactic core.
+    ctx.globalAlpha = 0.055;
+    const halo = scale * 0.72;
+    ctx.drawImage(sprites[1], centerX - halo / 2, centerY - halo * TILT / 2, halo, halo * TILT);
+    ctx.globalAlpha = 0.1;
+    ctx.drawImage(sprites[3], centerX - halo * 0.2, centerY - halo * 0.2 * TILT, halo * 0.4, halo * 0.4 * TILT);
+    const mx = (pointer.x - centerX) / scale;
+    const my = (pointer.y - centerY) / (scale * TILT);
+    const steps = Math.ceil(dt / (1 / 60));
+    const step = dt / steps;
+    const damping = Math.exp(-2.15 * step);
+    for (const p of particles) {
+      const angle = p.phase + clock * p.speed;
+      const tx = Math.cos(angle) * p.radius;
+      const ty = Math.sin(angle) * p.radius * p.stretch;
+      if (!paused) {
+        for (let j = 0; j < steps; j++) {
+          // Damped spring restores the moving orbit after any disturbance.
+          let ax = -3.4 * p.ox, ay = -3.4 * p.oy;
+          if (pointer.active) {
+            const dx = mx - (tx + p.ox), dy = my - (ty + p.oy);
+            const r2 = dx * dx + dy * dy;
+            if (r2 < 0.32) {
+              const force = Math.min(6, 0.085 / (r2 + 0.018)) * (1 - r2 / 0.32);
+              ax += dx * force; ay += dy * force;
+            }
+          }
+          p.vx = (p.vx + ax * step) * damping;
+          p.vy = (p.vy + ay * step) * damping;
+          p.ox += p.vx * step; p.oy += p.vy * step;
+        }
+      }
+      const x = centerX + (tx + p.ox) * scale;
+      const y = centerY + (ty + p.oy) * scale * TILT;
+      const size = p.size * Math.min(camera, 2.2);
+      if (x < -size || x > width + size || y < -size || y > height + size) continue;
+      ctx.globalAlpha = p.brightness * (0.78 + 0.22 * Math.sin(clock * 0.7 + p.shimmer));
+      ctx.drawImage(sprites[p.color], x - size, y - size, size * 2, size * 2);
+    }
+    for (let i = waves.length - 1; i >= 0; i--) {
+      const wave = waves[i];
+      if (!paused) wave.age += dt;
+      if (wave.age > 1.8) { waves.splice(i, 1); continue; }
+      const radius = (0.025 + wave.age * 0.8) * scale;
+      ctx.globalAlpha = Math.pow(1 - wave.age / 1.8, 2) * 0.65;
+      ctx.strokeStyle = '#9efaff'; ctx.lineWidth = 1.3;
+      ctx.beginPath(); ctx.ellipse(centerX + wave.x * scale, centerY + wave.y * scale * TILT, radius, radius * TILT, 0, 0, TAU); ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    if (!paused) requestFrame(); else lastTime = 0;
+  }
+  function isControl(element) { return element instanceof Element && !!element.closest('a,button,input,textarea,select'); }
+  window.addEventListener('pointermove', event => {
+    pointer.x = event.clientX; pointer.y = event.clientY;
+    pointer.active = !isControl(event.target);
+  }, { passive: true });
+  window.addEventListener('pointerout', event => { if (!event.relatedTarget) pointer.active = false; });
+  window.addEventListener('pointercancel', () => { pointer.active = false; });
+  window.addEventListener('pointerup', event => { if (event.pointerType !== 'mouse') pointer.active = false; }, { passive: true });
+  window.addEventListener('blur', () => { pointer.active = false; });
+  // Use click, rather than pointerdown, so touch scrolling never triggers an explosion.
+  window.addEventListener('click', event => {
+    if (paused || isControl(event.target) || event.detail === 0) return;
+    const scale = baseScale * camera;
+    const x = (event.clientX - centerX) / scale;
+    const y = (event.clientY - centerY) / (scale * TILT);
+    for (const p of particles) {
+      const [tx, ty] = target(p);
+      let dx = tx + p.ox - x, dy = ty + p.oy - y;
+      let distance = Math.hypot(dx, dy);
+      if (distance >= 0.95) continue;
+      if (distance < 0.001) { const a = random() * TAU; dx = Math.cos(a) * 0.001; dy = Math.sin(a) * 0.001; distance = 0.001; }
+      const impulse = 1.7 * Math.pow(1 - distance / 0.95, 2);
+      p.vx += dx / distance * impulse; p.vy += dy / distance * impulse;
+      // Bound repeated rapid clicks to keep the simulation stable.
+      const speed = Math.hypot(p.vx, p.vy);
+      if (speed > 3) { p.vx *= 3 / speed; p.vy *= 3 / speed; }
+    }
+    if (waves.length >= 8) waves.shift();
+    waves.push({ x, y, age: 0 });
+  });
+  function syncPause() {
+    pauseButton.textContent = paused ? '继续' : '暂停';
+    pauseButton.setAttribute('aria-pressed', String(paused));
+    pauseButton.setAttribute('aria-label', paused ? '继续星系动画' : '暂停星系动画');
+    stateLabel.textContent = paused ? 'PAUSED' : 'LIVE';
+    lastTime = 0; clearNext = true; requestFrame();
+  }
+  pauseButton.addEventListener('click', () => { paused = !paused; syncPause(); });
+  reduceMotion.addEventListener('change', event => { paused = event.matches; syncPause(); });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { cancelAnimationFrame(raf); raf = 0; pointer.active = false; }
+    else { clearNext = true; requestFrame(); }
+    lastTime = 0;
+  });
+  window.addEventListener('resize', resize, { passive: true });
+  window.addEventListener('scroll', () => { pointer.active = false; updateScroll(); if (paused) clearNext = true; requestFrame(); }, { passive: true });
+  // Accessible, per-character titles; observers reveal each heading only once.
+  const headings = document.querySelectorAll('[data-reveal]');
+  for (const heading of headings) {
+    const text = heading.textContent;
+    heading.setAttribute('aria-label', text); heading.textContent = '';
+    Array.from(text).forEach((letter, index) => {
+      const span = document.createElement('span'); span.className = 'letter';
+      span.textContent = letter === ' ' ? '\u00a0' : letter;
+      span.style.setProperty('--i', index); span.setAttribute('aria-hidden', 'true');
+      heading.appendChild(span);
+    });
+  }
+  if ('IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) if (entry.isIntersecting) { entry.target.classList.add('visible'); observer.unobserve(entry.target); }
+    }, { threshold: 0.25 });
+    headings.forEach(heading => observer.observe(heading));
+  } else headings.forEach(heading => heading.classList.add('visible'));
+  resize(); syncPause();
+})();
+</script>
+</body>
+</html>
